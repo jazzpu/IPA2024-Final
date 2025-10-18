@@ -11,7 +11,8 @@ import os
 import time
 import json
 import requests
-import restconf_final
+import restconf_final, netmiko_final, ansible_final
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 # load_dotenv() for using dotenv
 
@@ -25,7 +26,7 @@ ACCESS_TOKEN = os.getenv('WEBEX_ACCESS_TOKEN')
 
 # Defines a variable that will hold the roomId
 roomIdToGetMessages = (
-    "Y2lzY29zcGFyazovL3VybjpURUFNOnVzLXdlc3QtMl9yL1JPT00vYmQwODczMTAtNmMyNi0xMWYwLWE1MWMtNzkzZDM2ZjZjM2Zm"
+    "Y2lzY29zcGFyazovL3VybjpURUFNOnVzLXdlc3QtMl9yL1JPT00vZDMyYzJiOTAtNmMzMS0xMWYwLWJhOGMtYmZhMDMwMWUzYTM1"
 )
 MY_STUDENT_ID = "66070246"
 
@@ -92,10 +93,10 @@ while True:
             responseMessage = restconf_final.disable()
         elif command == "status":
             responseMessage = restconf_final.status()
-        # elif command == "gigabit_status":
-        #     <!!!REPLACEME with code for gigabit_status command!!!>
-        # elif command == "showrun":
-        #     <!!!REPLACEME with code for showrun command!!!>
+        elif command == "gigabit_status":
+            responseMessage = netmiko_final.gigabit_status()
+        elif command == "showrun":
+            responseMessage = ansible_final.showrun()
         else:
             responseMessage = "Error: No command or unknown command"
         
@@ -125,22 +126,33 @@ while True:
             headers=HTTPHeaders,
         ) 
 
-        # if command == "showrun" and responseMessage == 'ok':
-        #     filename = "<!!!REPLACEME with show run filename and path!!!>"
-        #     fileobject = <!!!REPLACEME with open file!!!>
-        #     filetype = "<!!!REPLACEME with Content-type of the file!!!>"
-        #     postData = {
-        #         "roomId": <!!!REPLACEME!!!>,
-        #         "text": "show running config",
-        #         "files": (<!!!REPLACEME!!!>, <!!!REPLACEME!!!>, <!!!REPLACEME!!!>),
-        #     }
-        #     postData = MultipartEncoder(<!!!REPLACEME!!!>)
-        #     HTTPHeaders = {
-        #     "Authorization": ACCESS_TOKEN,
-        #     "Content-Type": <!!!REPLACEME with postData Content-Type!!!>,
-        #     }
-        # # other commands only send text, or no attached file.
-        # else:
+        if command == "showrun" and responseMessage == "ok":
+
+            filepath = "show_run_66070246_R1-Exam.txt"
+            filename = "show_run_66070246_R1-Exam.txt"
+            fileobject = open(filepath, "rb")
+            filetype = "text/plain"
+            postData = {
+                "roomId": roomIdToGetMessages,
+                "text": "show running config",
+                "files": (filename, fileobject, filetype),
+            }
+            postData = MultipartEncoder(postData)
+            HTTPHeaders = {
+            "Authorization": "Bearer " + ACCESS_TOKEN,
+            "Content-Type": postData.content_type,
+            }
+        # other commands only send text, or no attached file.
+        else:
+            postData = {"roomId": roomIdToGetMessages, "text": responseMessage}
+            postData = json.dumps(postData)
+
+            # the Webex Teams HTTP headers, including the Authoriztion and Content-Type
+            HTTPHeaders = {
+                "Authorization": "Bearer " + ACCESS_TOKEN,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+        }
 
         #     # the Webex Teams HTTP headers, including the Authoriztion and Content-Type
         # Post the call to the Webex Teams message API.

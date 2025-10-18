@@ -1,11 +1,16 @@
 import subprocess
 
 def showrun():
-    # read https://www.datacamp.com/tutorial/python-subprocess to learn more about subprocess
-    command = ['<!!!REPLACEME with ansible command to run playbook!!!>', '<!!!REPLACEME with playbook yaml file!!!>']
+    command = ['ansible-playbook', 'playbook.yaml']
     result = subprocess.run(command, capture_output=True, text=True)
-    result = result.stdout
-    if 'ok=2' in result:
-        return <!!!REPLACEME!!!>
+    output = result.stdout
+    
+    # A much more reliable way to check for success
+    if 'failed=0' in output and 'unreachable=0' in output:
+        return 'ok'
     else:
-        return '<!!!REPLACEME!!!>
+        # Also print the error output for easier debugging
+        print("Ansible failed. Output:")
+        print(output)
+        print(result.stderr)
+        return 'Error: Ansible'
