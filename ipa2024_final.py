@@ -18,17 +18,15 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 #######################################################################################
 # 2. Assign the Webex access token to the variable ACCESS_TOKEN using environment variables.
-# print(os.getenv('WEBEX_ACCESS_TOKEN'))
+print(os.getenv('WEBEX_ACCESS_TOKEN'))
 ACCESS_TOKEN = os.getenv('WEBEX_ACCESS_TOKEN')
 
 #######################################################################################
 # 3. Prepare parameters get the latest message for messages API.
 
 # Defines a variable that will hold the roomId
-roomIdToGetMessages = (
-    "Y2lzY29zcGFyazovL3VybjpURUFNOnVzLXdlc3QtMl9yL1JPT00vZDMyYzJiOTAtNmMzMS0xMWYwLWJhOGMtYmZhMDMwMWUzYTM1"
-)
-MY_STUDENT_ID = "66070246"
+roomIdToGetMessages = os.getenv('ROOM_ID')
+MY_STUDENT_ID = os.getenv('STUDENT_ID')
 
 while True:
     # always add 1 second of delay to the loop to not go over a rate limit of API calls
@@ -114,49 +112,62 @@ while True:
         # Read Send a Message with Attachments Local File Attachments
         # https://developer.webex.com/docs/basics for more detail
 
-        postData = {"roomId": roomIdToGetMessages, "text": responseMessage}
-        HTTPHeaders = {
-            "Authorization": f"Bearer {ACCESS_TOKEN}",
-            "Content-Type": "application/json"
-        }  
+# 6. Complete the code to post the message to the Webex Teams room.
 
-        r = requests.post(
-            "https://webexapis.com/v1/messages",
-            data=json.dumps(postData),
-            headers=HTTPHeaders,
-        ) 
-
+        # Decide what to do based on the command and the response from the module
         if command == "showrun" and responseMessage == "ok":
-
-            filepath = "show_run_66070246_R1-Exam.txt"
+            # This block handles sending the backup file
             filename = "show_run_66070246_R1-Exam.txt"
-            fileobject = open(filepath, "rb")
-            filetype = "text/plain"
-            postData = {
-                "roomId": roomIdToGetMessages,
-                "text": "show running config",
-                "files": (filename, fileobject, filetype),
-            }
-            postData = MultipartEncoder(postData)
-            HTTPHeaders = {
-            "Authorization": "Bearer " + ACCESS_TOKEN,
-            "Content-Type": postData.content_type,
-            }
-        # other commands only send text, or no attached file.
+            try:
+                # Open the file in binary read mode
+                fileobject = open(filename, "rb")
+
+                # Use MultipartEncoder to package the file and text together
+                postData = MultipartEncoder({
+                    "roomId": roomIdToGetMessages,
+                    "text": "Show running config from R1-Exam",
+                    "files": (filename, fileobject, "text/plain"),
+                })
+
+                # The Content-Type header MUST come from the encoder
+                HTTPHeaders = {
+                    "Authorization": f"Bearer {ACCESS_TOKEN}",
+                    "Content-Type": postData.content_type,
+                }
+                
+                # Send the single, correctly formatted request
+                r = requests.post(
+                    "https://webexapis.com/v1/messages",
+                    data=postData,
+                    headers=HTTPHeaders
+                )
+
+            except FileNotFoundError:
+                print(f"ERROR: Could not find the file {filename} to send.")
+                # If the file is missing, send an error message instead
+                postData = {"roomId": roomIdToGetMessages, "text": "Error: Playbook ran, but the backup file was not found."}
+                HTTPHeaders = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
+                r = requests.post(
+                    "https://webexapis.com/v1/messages",
+                    data=json.dumps(postData),
+                    headers=HTTPHeaders
+                )
+
         else:
+            # For all other commands, just send a simple text message
             postData = {"roomId": roomIdToGetMessages, "text": responseMessage}
-            postData = json.dumps(postData)
-
-            # the Webex Teams HTTP headers, including the Authoriztion and Content-Type
             HTTPHeaders = {
-                "Authorization": "Bearer " + ACCESS_TOKEN,
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-        }
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            r = requests.post(
+                "https://webexapis.com/v1/messages",
+                data=json.dumps(postData),
+                headers=HTTPHeaders,
+            )
 
-        #     # the Webex Teams HTTP headers, including the Authoriztion and Content-Type
-        # Post the call to the Webex Teams message API.
+        # Check the status of the one request that was sent
         if not r.status_code == 200:
             raise Exception(
-                "Incorrect reply from Webex Teams API. Status code: {}".format(r.status_code)
+                f"Incorrect reply from Webex Teams API. Status code: {r.status_code}"
             )

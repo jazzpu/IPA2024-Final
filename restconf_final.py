@@ -86,7 +86,7 @@ def enable():
 
     if(resp.status_code >= 200 and resp.status_code <= 299):
         print("STATUS OK: {}".format(resp.status_code))
-        return f"Interface {LOOPBACK_ID} is enabled successfully"
+        return f"Interface {LOOPBACK_ID} is enabled successfully :D"
     else:
         print(f'Error. Status Code: {resp.status_code}')
         return f"Cannot enable: Interface {LOOPBACK_ID}"
